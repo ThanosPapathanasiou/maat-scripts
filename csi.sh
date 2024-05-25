@@ -41,7 +41,6 @@ if git rev-parse &>/dev/null; then
   cp -r $scripts_location/transform/d3 d3
   for i in "${analysis_types[@]}"
   do
-    echo "preparing html files"
     cp $scripts_location/transform/crime-scene.html analysis_$i.html
     sed -i "s/INPUT/$i.json/g" analysis_$i.html
   done
