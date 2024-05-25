@@ -34,14 +34,18 @@ if git rev-parse &>/dev/null; then
 
   # transform data
   python3 $scripts_location/merge/merge_comp_freqs.py analysis_revisions.csv complexity.csv                                         > /dev/null 2>&1 # don't print anything
-  python3 $scripts_location/transform/csv_as_enclosure_json.py          --structure complexity.csv --weights analysis_revisions.csv > hotspots.json
+  python3 $scripts_location/transform/csv_as_enclosure_json.py          --structure complexity.csv --weights analysis_revisions.csv > revisions.json
   python3 $scripts_location/transform/code_age_csv_as_enclosure_json.py --structure complexity.csv --weights       analysis_age.csv > age.json
 
   # prepare visualisation website
   cp -r $scripts_location/transform/d3 d3
-  cp $scripts_location/transform/crime-scene-hotspots.html hotspots.html
-  cp $scripts_location/transform/crime-scene-age.html      age.html
-  
+  for i in "${analysis_types[@]}"
+  do
+    echo "preparing html files"
+    cp $scripts_location/transform/crime-scene.html analysis_$i.html
+    sed -i "s/INPUT/$i.json/g" analysis_$i.html
+  done
+
   printf "Analysis finished: "
   date
 
