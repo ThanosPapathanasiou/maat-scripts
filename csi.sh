@@ -8,22 +8,32 @@
 
 if git rev-parse &>/dev/null; then
 
+  printf "Analysis started: "
+  date
+
   maat_location=$(dirname "$0")/code-maat-1.0.4-standalone.jar
   scripts_location=$(dirname "$0")
   output=crime-scene-analysis
 
   mkdir $output
 
-  # create data                                                                                                         # List of:
-  cloc --unix --vcs git --by-file --csv --quiet --timeout 10 --report-file=./$output/complexity.csv                     # - files
-  git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames > ./$output/git_log.txt            # - commits
-  java -jar $maat_location -l ./$output/git_log.txt -c git2 -a revisions  > ./$output/analysis_revisions.csv            # - files, number of revisions
-  java -jar $maat_location -l ./$output/git_log.txt -c git2 -a age        > ./$output/analysis_age.csv                  # - files, age 
+  echo "Gathering data..."                                                                                   # List of:
+  cloc --unix --vcs git --by-file --csv --quiet --timeout 1000 --report-file=./$output/complexity.csv        # - files
+  git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames > ./$output/git_log.txt # - commits
+
+  # analyze data
+  declare -a analysis_types=("age" "revisions")
+  declare -a all_analysis_types=("abs-churn" "age" "author-churn" "authors" "communication" "coupling" "entity-churn" "entity-effort" "entity-ownership" "fragmentation" "identity" "main-dev" "main-dev-by-revs" "messages" "refactoring-main-dev" "revisions" "soc" "summary")
+  for i in "${analysis_types[@]}"
+  do
+    echo "Performing '$i' analysis"
+    java -jar $maat_location -l ./$output/git_log.txt -c git2 -a $i > ./$output/analysis_$i.csv
+  done
 
   cd $output
 
   # transform data
-  python3 $scripts_location/merge/merge_comp_freqs.py analysis_revisions.csv complexity.csv
+  python3 $scripts_location/merge/merge_comp_freqs.py analysis_revisions.csv complexity.csv                                         > /dev/null 2>&1 # don't print anything
   python3 $scripts_location/transform/csv_as_enclosure_json.py          --structure complexity.csv --weights analysis_revisions.csv > hotspots.json
   python3 $scripts_location/transform/code_age_csv_as_enclosure_json.py --structure complexity.csv --weights       analysis_age.csv > age.json
 
@@ -32,6 +42,8 @@ if git rev-parse &>/dev/null; then
   cp $scripts_location/transform/crime-scene-hotspots.html hotspots.html
   cp $scripts_location/transform/crime-scene-age.html      age.html
   
+  printf "Analysis finished: "
+  date
 
   # run webserver
   echo ""
