@@ -8,17 +8,20 @@
 
 if git rev-parse &>/dev/null; then
 
+  maat_location=$(dirname "$0")/code-maat-1.0.4-standalone.jar
+  scripts_location=$(dirname "$0")
+
+  output=crime-scene-analysis
+  if [ -d "$output" ]; then
+      rm -Rf "$output"
+      mkdir -p $output/data
+  fi
+
   printf "Analysis started: "
   date
 
-  maat_location=$(dirname "$0")/code-maat-1.0.4-standalone.jar
-  scripts_location=$(dirname "$0")
-  output=crime-scene-analysis
-
-  mkdir -p $output/data
-
   echo "Gathering data..."                                                                                        # List of:
-   cloc --unix --vcs git --by-file --csv --quiet --timeout 1000 --report-file=./$output/data/complexity.csv       # - files
+  cloc --unix --vcs git --by-file --csv --quiet --timeout 1000 --report-file=./$output/data/complexity.csv        # - files
   git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames > ./$output/data/git_log.txt # - commits
   git shortlog -sn | cut -f2 > ./$output/data/git_authors.txt                                                     # - authors (sorted by # of commits)
 
@@ -40,19 +43,16 @@ if git rev-parse &>/dev/null; then
   cd $output/data/
 
   # transform data
-  colors=("Red" "Blue" "Green" "Yellow" "Orange" "Purple" "Cyan" "Magenta" "Lime" "Brown")
-  i=0
+  colors=("red" "blue" "green" "yellow" "orange" "purple" "cyan" "magenta" "lime" "brown") ; i=0
   echo "author,color" >> "analysis_authors.csv"
   while read -r name; do
-      color="${colors[i]}"
-      echo "$name,$color" >> "analysis_authors.csv"
-      ((i++))
+      color="${colors[i]}" ; echo "$name,$color" >> "analysis_authors.csv" ; ((i++))
   done < "git_authors.txt"
   python3 $scripts_location/transform/csv_main_dev_as_knowledge_json.py --structure complexity.csv --owners analysis_main-dev.csv --authors analysis_authors.csv > main-dev.json
 
-  python3 $scripts_location/merge/merge_comp_freqs.py analysis_revisions.csv complexity.csv                                             > /dev/null 2>&1 # don't print anything
-  python3 $scripts_location/transform/code_age_csv_as_enclosure_json.py     --structure complexity.csv --weights       analysis_age.csv > age.json
+  python3 $scripts_location/merge/merge_comp_freqs.py analysis_revisions.csv complexity.csv                                             > analysis_revisions2.csv    # > /dev/null 2>&1 # don't print anything
   python3 $scripts_location/transform/csv_as_enclosure_json.py              --structure complexity.csv --weights analysis_revisions.csv > revisions.json
+  python3 $scripts_location/transform/code_age_csv_as_enclosure_json.py     --structure complexity.csv --weights       analysis_age.csv > age.json
   python3 $scripts_location/transform/communication_csv_as_edge_bundling.py --communication analysis_communication.csv                  > communication.json
 
   cd ..
